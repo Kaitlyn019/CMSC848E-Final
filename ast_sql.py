@@ -1,5 +1,3 @@
-# SELECT count(*) FROM head WHERE age  >  56
-
 from anytree import Node, RenderTree
 from enum import Enum
 
@@ -21,6 +19,7 @@ class Operator(Enum):
     OR = "OR"
     GREATER_THAN = "GREATER_THAN"
     LESS_THAN = "LESS_THAN"
+    BETWEEN = "BETWEEN"
     EQUAL = "EQUAL"
     NOT_EQUAL = "NOT_EQUAL"
     UNION_CONST = "UNION_CONST"
@@ -43,6 +42,7 @@ class Operator(Enum):
     CONST_SET_LEAF = "CONST_SET_LEAF"
     RELATION_LEAF = "RELATION_LEAF"
     EMPTY = "EMPTY"
+    ARITHMETIC = "ARITHMETIC"
 
 ops_outputs = {
     Operator.UNION_SET: Type.RELATION,
@@ -55,9 +55,10 @@ ops_outputs = {
     Operator.OR: Type.PREDICATE,
     Operator.GREATER_THAN: Type.PREDICATE,
     Operator.LESS_THAN: Type.PREDICATE,
+    Operator.BETWEEN: Type.PREDICATE,
     Operator.EQUAL: Type.PREDICATE,
     Operator.NOT_EQUAL: Type.PREDICATE,
-    Operator.UNION_CONST: Type.CONST,
+    Operator.UNION_CONST: Type.CONST_SET,
     Operator.ORDERBY_ASC: Type.RELATION,
     Operator.ORDERBY_DSC: Type.RELATION,
     Operator.GROUPBY: Type.RELATION,
@@ -76,7 +77,8 @@ ops_outputs = {
     Operator.CONST_LEAF: Type.CONST,
     Operator.CONST_SET_LEAF: Type.CONST_SET,
     Operator.RELATION_LEAF: Type.RELATION,
-    Operator.EMPTY: Type.EMPTY
+    Operator.EMPTY: Type.EMPTY,
+    Operator.ARITHMETIC: Type.CONST,
 }
 
 ops_inputs = {
@@ -90,6 +92,7 @@ ops_inputs = {
     Operator.OR: (Type.PREDICATE, Type.PREDICATE),
     Operator.GREATER_THAN: (Type.CONST, Type.CONST),
     Operator.LESS_THAN: (Type.CONST, Type.CONST),
+    Operator.BETWEEN: (Type.CONST, Type.CONST),
     Operator.EQUAL: (Type.CONST, Type.CONST),
     Operator.NOT_EQUAL: (Type.CONST, Type.CONST),
     Operator.UNION_CONST: (Type.CONST_SET, Type.CONST_SET),
@@ -98,6 +101,7 @@ ops_inputs = {
     Operator.GROUPBY: (Type.CONST, Type.RELATION),
     Operator.LIMIT: (Type.CONST, Type.RELATION),
     Operator.IN: (Type.CONST, Type.RELATION),
+    Operator.NOTIN: (Type.CONST, Type.RELATION),
     Operator.LIKE: (Type.CONST, Type.CONST),
     Operator.NOTLIKE: (Type.CONST, Type.CONST),
     Operator.SUM: (Type.CONST, Type.EMPTY),
@@ -109,7 +113,8 @@ ops_inputs = {
     Operator.AS: (Type.CONST, Type.RELATION),
     Operator.CONST_LEAF: (Type.EMPTY, Type.EMPTY),
     Operator.CONST_SET_LEAF: (Type.EMPTY, Type.EMPTY),
-    Operator.RELATION_LEAF: (Type.EMPTY, Type.EMPTY)
+    Operator.RELATION_LEAF: (Type.EMPTY, Type.EMPTY),
+    Operator.ARITHMETIC: (Type.CONST, Type.CONST)
 }
 
 counter = 0
@@ -139,19 +144,50 @@ class AST():
 
         return node
 
-    def valid(self, node):
-        print (ops_inputs[node.op])
+    def copyNode(self, node):
+        id = "s" + str(self.counter)
+        self.counter += 1
+
+        if len(node.children) == 2:
+            node_copy = Node(id, op = node.op, 
+                         children = (self.copyNode(node.children[0]), self.copyNode(node.children[1])), 
+                         value = node.value)
+        elif len(node.children) == 1:
+            node_copy = Node(id, op = node.op, 
+                         children = (self.copyNode(node.children[0]),), 
+                         value = node.value)
+        else:
+            node_copy = Node(id, op=node.op, value = node.value)
+
+        self.nodes.insert(0, node_copy)
+
+        return node_copy
+    
+    def valid(self, node, verbose = False):
+        if verbose: print ("Target: " + str(ops_inputs[node.op]))
 
         if (len(node.children) == 0):
             return True
         elif (len(node.children) == 1):
-            print ((ops_outputs[node.children[0].op],))
-            if ops_inputs[node.op] == (ops_outputs[node.children[0].op],):
-                return True
+            if verbose: print ("Input: " + str(ops_outputs[node.children[0].op]) + " , " + str(Type.EMPTY))
+            if ops_inputs[node.op] == (ops_outputs[node.children[0].op],Type.EMPTY):
+                return self.valid(node.children[0]) and True
         else:
-            print ((ops_outputs[node.children[0].op], ops_outputs[node.children[1].op]))
+            if verbose: print ("Input: " + str(ops_outputs[node.children[0].op]) + " , " + str(ops_outputs[node.children[1].op]))
             if ops_inputs[node.op] == (ops_outputs[node.children[0].op], ops_outputs[node.children[1].op]):
-                return True
+                return self.valid(node.children[0]) and self.valid(node.children[1]) and True
+
+        # Exceptions: if want const_set but given const, it is okay
+        if (node.op == Operator.UNION_CONST and 
+            (ops_outputs[node.children[0].op], ops_outputs[node.children[1].op]) in 
+            [(Type.CONST, Type.CONST), (Type.CONST_SET, Type.CONST), (Type.CONST, Type.CONST_SET)]):
+                return self.valid(node.children[0]) and self.valid(node.children[1]) and True
+
+        if (node.op == Operator.PROJECTION and 
+            ops_outputs[node.children[0].op] == Type.CONST):
+                return self.valid(node.children[0]) and self.valid(node.children[1])
+
+        print ("Error: " + str(node))
         return False
     
     def getTree(self): # returns most recent node
