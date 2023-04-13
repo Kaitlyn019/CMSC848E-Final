@@ -19,6 +19,7 @@ class Lexer():
         self.lexer.add('GROUP_BY', r'GROUP BY')
         self.lexer.add('HAVING', r'HAVING')
         self.lexer.add('LIMIT', r'LIMIT')
+        self.lexer.add('COUNT', r'COUNT ')
 
         # Schema Const
         clms = list(map(lambda x: str.lower(x[1]), tables.loc[self.db_id]['column_names_original']))
@@ -26,11 +27,26 @@ class Lexer():
         clms.sort(key=len)
         clms.reverse()
 
-        self.lexer.add('CLM_NAME', re.compile("\w+\.("+("|".join(clms))+")", re.IGNORECASE))
+        self.lexer.add('SCHEMA_CONST', re.compile("\w+\.("+("|".join(clms))+")", re.IGNORECASE))
         
         ts = list(map(lambda x: str.lower(x), tables.loc[self.db_id]['table_names_original']))
-        ts.sort(key=len)
-        ts.reverse()
+        #ts.sort(key=len)
+
+        combined = clms + ts
+        combined.sort(key=len)
+        combined.reverse()
+
+        self.lexer.add('SCHEMA_CONST', re.compile("|".join(list(filter(lambda x: len(x) > 2, combined))), re.IGNORECASE))
+        #self.lexer.add('SCHEMA_CONST', re.compile("|".join(ts), re.IGNORECASE))
+
+        # Aggregates
+        self.lexer.add('COUNT', r'count|COUNT', re.IGNORECASE)
+        self.lexer.add('MAX', r'max|MAX')
+        self.lexer.add('MIN', r'min|MIN')
+        self.lexer.add('SUM', r'sum|SUM')
+        self.lexer.add('AVG', r'avg|AVG')
+
+        _ = '''         ts.reverse()
 
         i = 0
         j = 0
@@ -46,10 +62,7 @@ class Lexer():
             self.lexer.add('CLM_NAME', re.compile("|".join(clms[i:]), re.IGNORECASE))
         else:
             self.lexer.add('RELATION', re.compile("|".join(ts[j:]), re.IGNORECASE))
-
-        # self.lexer.add('CLM_NAME', re.compile("|".join(clms), re.IGNORECASE))
-        # self.lexer.add('RELATION', re.compile("|".join(ts), re.IGNORECASE))
-
+ '''
         # Asc/Dsc
         self.lexer.add('ASC', r'asc|ASC')
         self.lexer.add('DSC', r'desc|DESC')
@@ -64,23 +77,10 @@ class Lexer():
         self.lexer.add('UNION', r'union|UNION')        
         self.lexer.add('EXCEPT', r'except|EXCEPT')
 
-        # Aggregates
-        self.lexer.add('COUNT', r'count|COUNT')
-        self.lexer.add('MAX', r'max|MAX')
-        self.lexer.add('MIN', r'min|MIN')
-        self.lexer.add('SUM', r'sum|SUM')
-        self.lexer.add('AVG', r'avg|AVG')
-
         # SYMBOLS
         self.lexer.add('COMMA', r',')
         self.lexer.add('OPEN_PAREN', r'\(')
         self.lexer.add('CLOSE_PAREN', r'\)')
-
-        # Math
-        self.lexer.add('MINUS', r'-')
-        self.lexer.add('DIVIDE', r'/')
-        self.lexer.add('ADD', r'\+')
-        self.lexer.add('MULTIPLY', r'\*')
 
         # Operators
         self.lexer.add('GREATER_EQUAL', r'>=')
@@ -97,9 +97,19 @@ class Lexer():
         self.lexer.add('NOTLIKE', r'not like|NOT LIKE')
         self.lexer.add('LIKE', r'like|LIKE')
 
+        if len(list(filter(lambda x: len(x) <= 2, combined))) != 0:
+            self.lexer.add('SCHEMA_CONST', re.compile("|".join(list(filter(lambda x: len(x) <= 2, combined))), re.IGNORECASE))
+
         # Number
         # self.lexer.add('REGEX', r'[\'|"]%[A-z ]+%[\'|"]')
-        self.lexer.add('NUMBER', r'\d+(\.\d+)?')
+        self.lexer.add('NUMBER', r'\-?\d+(\.\d+)?')
+
+        # Math
+        self.lexer.add('MINUS', r'-')
+        self.lexer.add('DIVIDE', r'/')
+        self.lexer.add('ADD', r'\+')
+        self.lexer.add('MULTIPLY', r'\*')
+
         self.lexer.add('STRING', r'[\'][^\']*[\']|[\"][^\"]*[\"]')
 
         self.lexer.add('TEXT', r'\w+')
