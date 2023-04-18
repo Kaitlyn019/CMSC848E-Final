@@ -1,5 +1,7 @@
 from anytree import Node, RenderTree
 from enum import Enum
+import pandas as pd
+import re
 
 class Type(Enum):
     PREDICATE = "PREDICATE"
@@ -7,6 +9,18 @@ class Type(Enum):
     CONST = "CONST"
     CONST_SET = "CONST_SET"
     EMPTY = "EMPTY"
+
+# each of the types that can be returned by a node
+class CompleteType(Enum):
+    BOOLEAN = "BOOLEAN" # returns a single value
+    INTEGER = "INTEGER"
+    STRING = "STRING"
+    TIME = "TIME"
+    OTHERS = "OTHERS"
+    SET = "SET" # returns a single column
+    RELATION = "RELATION" # returns multiple columns
+    ERROR = "ERROR"
+    UNKNOWN = "UNKNOWN"
 
 class Operator(Enum):
     UNION_SET = "UNION_SET"
@@ -118,29 +132,132 @@ ops_inputs = {
 }
 
 counter = 0
+tables = pd.read_json("spider/tables.json")
+tables = tables.set_index('db_id')
 
 class AST():
-    def __init__(self):
+    def __init__(self, db_id):
         self.leaf = Node("EMPTY", op = Operator.EMPTY)
         self.counter = 0
         self.nodes = []
+        
+        # Code iterates through the json version of the tables to create a dataframe for all data in the db
+        # which has the column names, table name, types, is_primary, and foreign key pairs in list [(table, column),...]
+        ct = 1
+        temp = tables.loc[db_id]
+        curr_table = []
+        while ct < len(temp["column_names_original"]):
+            (index, name) = temp["column_names_original"][ct]
+            
+            #if index > len(self.schema):
+            #    df = pd.DataFrame(curr_table.copy(), columns=["name","type","is_primary","foreign_keys"]).set_index("name")
+            #    self.schema[(temp["table_names_original"][index-1]).lower()] = df
+            #    curr_table = [] 
+            
+            # name of column, table, type of column, is primary, matching foreigns in list [(table, column),...]
+            is_primary = True if ct in temp["primary_keys"] else False
+            table = (temp["table_names_original"][index]).lower()
+            curr_table.append([name.lower(), table, temp["column_types"][ct], is_primary, []])
+
+            ct += 1
+        
+        self.schema = pd.DataFrame(curr_table.copy(), columns=["clm_name", "table_name", "clm_type", "is_primary", "foreign_keys"]).set_index(["table_name", "clm_name"])
+        
+        for (key1, key2) in temp["foreign_keys"]:
+            (table_1, name_1) = temp["column_names_original"][int(key1)]
+            (table_2, name_2) = temp["column_names_original"][int(key2)]
+
+            table_1 = temp["table_names_original"][int(table_1)].lower()
+            table_2 = temp["table_names_original"][int(table_2)].lower()
+
+            self.schema.loc[table_1, name_1.lower()]["foreign_keys"].append((table_2, name_2.lower()))
+            self.schema.loc[table_2, name_2.lower()]["foreign_keys"].append((table_1, name_1.lower()))
+
+    # When node is created, it is given a specific type
+    # BOOLEAN = "BOOLEAN"
+    # INTEGER = "INTEGER"
+    # STRING = "STRING"
+    # COLUMN = "COLUMN"
+    # RELATION = "RELATION"
+
+    # We presume that it will be bottom up
+    def getCompleteType(self, node):
+        #(left, right) = (None, None) if len(node.children) == 0 else node.children
+
+        if node.op == Operator.CONST_LEAF:
+            value = node.value 
+            
+            # get the list of column names for this db
+            self.clms = list(map(lambda x: str.lower(x[1]), list(self.schema["column_names"])))
+            self.clms.remove('*')
+            self.clms.sort(key=len)
+            self.clms.reverse() # sort by length so that we match longest possible first
+
+            clms_rgx = re.compile(re.compile("|".join(self.clms), re.IGNORECASE))
+            tbls_rgx = re.compile(re.compile("|".join(list(self.schema.keys()))), re.IGNORECASE)
+            
+            if type(value) is int: # the value is a number
+                node.type = CompleteType.INTEGER
+                return 1
+            elif re.match(r'(\w+)\.(\w+)', value): # i.e. "T1.party_id"
+                match = re.match(r'(\w+)\.(\w+)', value)
+                
+                if clms_rgx.match(match.group(2)): # check that the column is valid i.e. party_id in db
+                    node.type = CompleteType.SET # then this returns a table
+                    return 1
+                else:
+                    node.type = CompleteType.ERROR # if it is not in the db, this column is invalid to call upon
+                    return -1
+            elif clms_rgx.match(value) and tbls_rgx.match(value): # i.e. "party_id"
+                clm = clms_rgx.match(value)
+                tbl = tbls_rgx.match(value)
+
+                if len(clm) > len(tbl):
+                    node.type = CompleteType.SET
+                elif len(clm) < len(tbl):
+                    node.type = CompleteType.RELATION
+                else: # there exists a column that matches a table name, will need to propogate up to determine?
+                    print ("FLAG THIS EXAMPLE FOR LOOKING INTO")
+                    node.type = CompleteType.UNKNOWN
+                
+                return 1
+            
+            elif clms_rgx.match(value): 
+                node.type = CompleteType.SET
+            elif tbls_rgx.match(value):
+                node.type = CompleteType.RELATION
+            elif re.match(r'[\'][^\']*[\']|[\"][^\"]*[\"]', value): # is some string in quotes
+                node.type = CompleteType.STRING
+            elif re.match(r'\w+', value): # is some string (usually in an As, will handle above)
+                node.type = CompleteType.STRING
+            else:
+                node.type = CompleteType.ERROR
+                return -1
+            return 1
+        
+        elif node.op in [Operator.AVG, Operator.SUM, Operator.MAX, Operator.MIN, Operator.COUNT]: # the aggregates
+            (child,) = node.children
+            if node.op == Operator.AVG or node.op == Operator.SUM: # the child must be type int or set with type int
+                if child.type == CompleteType.SET: # the child must be type int or set with type int
+                    self.schema.loc[child.value] 
 
     def createNode(self, op, left, right, value):
         id = "s" + str(self.counter)
         self.counter += 1
 
         if (left == None) and (right == None):
-            node = Node(id, op = op, value=value)
+            node = Node(id, op = op, value=value) #, type = CompleteType.UNKNOWN)
+            #self.getCompleteType(node)
+
         elif right == None:
-            node = Node(id, op = op, children=(left,), value=value)
+            node = Node(id, op = op, children=(left,), value=value) #, type = CompleteType.UNKNOWN)
+            #self.getCompleteType(node)
+
         else:
-            node = Node(id, op = op, children=(left, right), value=value)
+            node = Node(id, op = op, children=(left, right), value=value) #, type = CompleteType.UNKNOWN)
+            #self.getCompleteType(node)
+
         self.nodes.insert(0, node)
-
-        return node
-
-    def updateNodeValue(self, node, newVal):
-        node = Node(node.id, op = node.op, value = newVal)
 
         return node
 
@@ -162,7 +279,7 @@ class AST():
         self.nodes.insert(0, node_copy)
 
         return node_copy
-    
+
     def valid(self, node, verbose = False):
         if verbose: print ("Target: " + str(ops_inputs[node.op]))
 
@@ -201,26 +318,3 @@ class AST():
             print ("")
         else:
             print (RenderTree(self.nodes[0]))
-
-''' class UnNode():
-    def __init__(self, op, child):
-        self.op = op
-        self.child = child
-
-        #return ops_outputs[self.op]
-    
-    def valid(self):
-        if ops_inputs[self.op] == (ops_outputs[self.child],):
-            return True
-        return False
-    
-class LeafNode():
-    def __init__(self, op, value):
-        self.value = value
-        self.op = op
-
-        #return ops_outputs[self.op]
-
-    def valid(self):
-        return True
- '''

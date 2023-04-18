@@ -8,9 +8,9 @@ from anytree import Node, RenderTree
 # stmt = "SELECT count(*) FROM head WHERE age  >  56	department_management"
 f = open("spider/train_gold.sql", "r")
 
-test = ['SELECT active_to_date - active_from_date FROM customer_contact_channels  customers_and_addresses']
+test = ['SELECT count(*), age FROM head WHERE age  >  (SELECT AVG(age) FROM head) department_management']
 
-for stmt in f.readlines():
+for stmt in test: #f.readlines():
 
     print (stmt)
 
@@ -20,14 +20,14 @@ for stmt in f.readlines():
     text = " ".join(stmt.split()[:-1])
 
     l = Lexer(db_id).get_lexer()
-    p = Parser().get_parser()
+    p = Parser(db_id).get_parser()
 
     #print (list(l.lex(text)))
     tree = p.parse(l.lex(text))
         
-    #print (RenderTree(tree))
+    print (RenderTree(tree))
 
-    if not (Parser().get_ast().valid(tree)):
+    if not (Parser(db_id).get_ast().valid(tree)):
         print (RenderTree(tree))
         Parser().get_ast().valid(tree, True)
 

@@ -4,7 +4,7 @@ from ast_sql import AST, Type, Operator
 # SELECT count(*) FROM head WHERE age  >  56
 
 class Parser():
-    def __init__(self):
+    def __init__(self, db_id):
         self.pg = ParserGenerator(
             # A list of all token names accepted by the parser.
             ['SELECT','WHERE','FROM','ORDER_BY','GROUP_BY','HAVING','LIMIT',
@@ -15,7 +15,7 @@ class Parser():
              'TEXT','NUMBER','STRING', 'INTERSECT','UNION','EXCEPT', 'MINUS', 'ADD', 'MULTIPLY', 'DIVIDE'
              ]
         )
-        self.AST = AST()
+        self.AST = AST(db_id)
 
         # Clauses
         @self.pg.production('expression : SELECT constList FROM fromStmt')
