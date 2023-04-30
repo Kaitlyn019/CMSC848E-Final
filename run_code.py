@@ -20,15 +20,20 @@ for stmt in test: #f.readlines():
     text = " ".join(stmt.split()[:-1])
 
     l = Lexer(db_id).get_lexer()
-    p = Parser(db_id).get_parser()
+    p = Parser(db_id)
 
+    p2 = p.get_parser()
+    
     #print (list(l.lex(text)))
-    tree = p.parse(l.lex(text))
-        
+    tree = p2.parse(l.lex(text))
+    tree = p.get_ast().balanceTree()
+    
     print (RenderTree(tree))
 
+    _ = '''
     if not (Parser(db_id).get_ast().valid(tree)):
         print (RenderTree(tree))
         Parser().get_ast().valid(tree, True)
-
+    '''
+    
 f.close()

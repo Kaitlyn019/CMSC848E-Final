@@ -36,11 +36,11 @@ for (key1, key2) in temp["foreign_keys"]:
     table_1 = temp["table_names_original"][int(table_1)].lower()
     table_2 = temp["table_names_original"][int(table_2)].lower()
 
-    print (table_1, name_1.lower())
+    # print (table_1, name_1.lower())
 
     schema.loc[table_1, name_1.lower()]["foreign_keys"].append((table_2, name_2.lower()))
     
-    print (table_2, name_2.lower())
+    # print (table_2, name_2.lower())
 
     schema.loc[table_2, name_2.lower()]["foreign_keys"].append((table_1, name_1.lower()))
 

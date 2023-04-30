@@ -1,135 +1,7 @@
 from anytree import Node, RenderTree
-from enum import Enum
+from ast_consts import *
 import pandas as pd
 import re
-
-class Type(Enum):
-    PREDICATE = "PREDICATE"
-    RELATION = "RELATION"
-    CONST = "CONST"
-    CONST_SET = "CONST_SET"
-    EMPTY = "EMPTY"
-
-# each of the types that can be returned by a node
-class CompleteType(Enum):
-    BOOLEAN = "BOOLEAN" # returns a single value
-    INTEGER = "INTEGER"
-    STRING = "STRING"
-    TIME = "TIME"
-    OTHERS = "OTHERS"
-    SET = "SET" # returns a single column
-    RELATION = "RELATION" # returns multiple columns
-    ERROR = "ERROR"
-    UNKNOWN = "UNKNOWN"
-
-class Operator(Enum):
-    UNION_SET = "UNION_SET"
-    INTERSECTION_SET = "INTERSECTION_SET"
-    DIFFERENCE_SET = "DIFFERENCE_SET"
-    SELECTION = "SELECTION"
-    CARTESIAN = "CARTESIAN"
-    PROJECTION = "PROJECTION"
-    AND = "AND"
-    OR = "OR"
-    GREATER_THAN = "GREATER_THAN"
-    LESS_THAN = "LESS_THAN"
-    BETWEEN = "BETWEEN"
-    EQUAL = "EQUAL"
-    NOT_EQUAL = "NOT_EQUAL"
-    UNION_CONST = "UNION_CONST"
-    ORDERBY_ASC = "ORDERBY_ASC"
-    ORDERBY_DSC = "ORDERBY_DSC"
-    GROUPBY = "GROUPBY"
-    LIMIT = "LIMIT"
-    IN = "IN"
-    NOTIN = "NOT_IN"
-    LIKE = "LIKE"
-    NOTLIKE = "NOT_LIKE"
-    COUNT = "COUNT"
-    SUM = "SUM"
-    MAX = "MAX"
-    MIN = "MIN"
-    AVG = "AVG"
-    DISTINCT = "DISTINCT"
-    AS = "AS"
-    CONST_LEAF = "CONST_LEAF"
-    CONST_SET_LEAF = "CONST_SET_LEAF"
-    RELATION_LEAF = "RELATION_LEAF"
-    EMPTY = "EMPTY"
-    ARITHMETIC = "ARITHMETIC"
-
-ops_outputs = {
-    Operator.UNION_SET: Type.RELATION,
-    Operator.INTERSECTION_SET: Type.RELATION,
-    Operator.DIFFERENCE_SET: Type.RELATION,
-    Operator.SELECTION: Type.RELATION,
-    Operator.CARTESIAN: Type.RELATION,
-    Operator.PROJECTION: Type.RELATION,
-    Operator.AND: Type.PREDICATE,
-    Operator.OR: Type.PREDICATE,
-    Operator.GREATER_THAN: Type.PREDICATE,
-    Operator.LESS_THAN: Type.PREDICATE,
-    Operator.BETWEEN: Type.PREDICATE,
-    Operator.EQUAL: Type.PREDICATE,
-    Operator.NOT_EQUAL: Type.PREDICATE,
-    Operator.UNION_CONST: Type.CONST_SET,
-    Operator.ORDERBY_ASC: Type.RELATION,
-    Operator.ORDERBY_DSC: Type.RELATION,
-    Operator.GROUPBY: Type.RELATION,
-    Operator.LIMIT: Type.RELATION,
-    Operator.IN: Type.PREDICATE,
-    Operator.NOTIN: Type.PREDICATE,
-    Operator.LIKE: Type.PREDICATE,
-    Operator.NOTLIKE: Type.PREDICATE,
-    Operator.SUM: Type.CONST,
-    Operator.MAX: Type.CONST,
-    Operator.MIN: Type.CONST,
-    Operator.COUNT: Type.CONST,
-    Operator.AVG: Type.CONST,
-    Operator.DISTINCT: Type.CONST,
-    Operator.AS: Type.RELATION,
-    Operator.CONST_LEAF: Type.CONST,
-    Operator.CONST_SET_LEAF: Type.CONST_SET,
-    Operator.RELATION_LEAF: Type.RELATION,
-    Operator.EMPTY: Type.EMPTY,
-    Operator.ARITHMETIC: Type.CONST,
-}
-
-ops_inputs = {
-    Operator.UNION_SET: (Type.RELATION, Type.RELATION),
-    Operator.INTERSECTION_SET: (Type.RELATION, Type.RELATION),
-    Operator.DIFFERENCE_SET: (Type.RELATION, Type.RELATION),
-    Operator.SELECTION: (Type.PREDICATE, Type.RELATION),
-    Operator.CARTESIAN: (Type.RELATION, Type.RELATION),
-    Operator.PROJECTION: (Type.CONST_SET, Type.RELATION),
-    Operator.AND: (Type.PREDICATE, Type.PREDICATE),
-    Operator.OR: (Type.PREDICATE, Type.PREDICATE),
-    Operator.GREATER_THAN: (Type.CONST, Type.CONST),
-    Operator.LESS_THAN: (Type.CONST, Type.CONST),
-    Operator.BETWEEN: (Type.CONST, Type.CONST),
-    Operator.EQUAL: (Type.CONST, Type.CONST),
-    Operator.NOT_EQUAL: (Type.CONST, Type.CONST),
-    Operator.UNION_CONST: (Type.CONST_SET, Type.CONST_SET),
-    Operator.ORDERBY_ASC: (Type.CONST, Type.RELATION),
-    Operator.ORDERBY_DSC: (Type.CONST, Type.RELATION),
-    Operator.GROUPBY: (Type.CONST, Type.RELATION),
-    Operator.LIMIT: (Type.CONST, Type.RELATION),
-    Operator.IN: (Type.CONST, Type.RELATION),
-    Operator.NOTIN: (Type.CONST, Type.RELATION),
-    Operator.LIKE: (Type.CONST, Type.CONST),
-    Operator.NOTLIKE: (Type.CONST, Type.CONST),
-    Operator.SUM: (Type.CONST, Type.EMPTY),
-    Operator.MAX: (Type.CONST, Type.EMPTY),
-    Operator.MIN: (Type.CONST, Type.EMPTY),
-    Operator.COUNT: (Type.CONST, Type.EMPTY),
-    Operator.AVG: (Type.CONST, Type.EMPTY),
-    Operator.DISTINCT: (Type.CONST, Type.EMPTY),
-    Operator.AS: (Type.CONST, Type.RELATION),
-    Operator.CONST_LEAF: (Type.EMPTY, Type.EMPTY),
-    Operator.CONST_SET_LEAF: (Type.EMPTY, Type.EMPTY),
-    Operator.RELATION_LEAF: (Type.EMPTY, Type.EMPTY),
-    Operator.ARITHMETIC: (Type.CONST, Type.CONST)
-}
 
 counter = 0
 tables = pd.read_json("spider/tables.json")
@@ -157,7 +29,7 @@ class AST():
             # name of column, table, type of column, is primary, matching foreigns in list [(table, column),...]
             is_primary = True if ct in temp["primary_keys"] else False
             table = (temp["table_names_original"][index]).lower()
-            curr_table.append([name.lower(), table, temp["column_types"][ct], is_primary, []])
+            curr_table.append([name.lower(), table, table_types[temp["column_types"][ct]], is_primary, []])
 
             ct += 1
         
@@ -173,6 +45,18 @@ class AST():
             self.schema.loc[table_1, name_1.lower()]["foreign_keys"].append((table_2, name_2.lower()))
             self.schema.loc[table_2, name_2.lower()]["foreign_keys"].append((table_1, name_1.lower()))
 
+        clms = list(map(lambda x: str.lower(x), list(self.schema.index.get_level_values(1))))
+        clms.sort(key=len)
+        clms.reverse() # sort by length so that we match longest possible first
+
+        self.clms_rgx = re.compile("^("+"|".join(clms)+")$", re.IGNORECASE)
+
+        tbls = list(set(list(map(lambda x: str.lower(x), list(self.schema.index.get_level_values(0))))))
+        tbls.sort(key=len)
+        tbls.reverse() # sort by length so that we match longest possible first
+
+        self.tbls_rgx = re.compile("^("+"|".join(tbls)+")$", re.IGNORECASE)
+
     # When node is created, it is given a specific type
     # BOOLEAN = "BOOLEAN"
     # INTEGER = "INTEGER"
@@ -181,50 +65,48 @@ class AST():
     # RELATION = "RELATION"
 
     # We presume that it will be bottom up
+    # Returns true if node is valid, returns false if node is not valid
     def getCompleteType(self, node):
-        #(left, right) = (None, None) if len(node.children) == 0 else node.children
 
+        # Case 1: It is a leaf node
         if node.op == Operator.CONST_LEAF:
             value = node.value 
             
-            # get the list of column names for this db
-            self.clms = list(map(lambda x: str.lower(x[1]), list(self.schema["column_names"])))
-            self.clms.remove('*')
-            self.clms.sort(key=len)
-            self.clms.reverse() # sort by length so that we match longest possible first
-
-            clms_rgx = re.compile(re.compile("|".join(self.clms), re.IGNORECASE))
-            tbls_rgx = re.compile(re.compile("|".join(list(self.schema.keys()))), re.IGNORECASE)
+            clm_match = self.clms_rgx.match(value)
+            tbl_match = self.tbls_rgx.match(value)
             
             if type(value) is int: # the value is a number
                 node.type = CompleteType.INTEGER
-                return 1
+                return True
+            
             elif re.match(r'(\w+)\.(\w+)', value): # i.e. "T1.party_id"
                 match = re.match(r'(\w+)\.(\w+)', value)
-                
-                if clms_rgx.match(match.group(2)): # check that the column is valid i.e. party_id in db
-                    node.type = CompleteType.SET # then this returns a table
-                    return 1
+
+                if self.clms_rgx.match(match.group(2)): # check that the column is valid i.e. party_id in db
+                    node.type = CompleteType.SET # then this returns a column
+                    self.schema[[match.group(1), match.group(2)]] = ["", False, []]
+                    return True
                 else:
                     node.type = CompleteType.ERROR # if it is not in the db, this column is invalid to call upon
-                    return -1
-            elif clms_rgx.match(value) and tbls_rgx.match(value): # i.e. "party_id"
-                clm = clms_rgx.match(value)
-                tbl = tbls_rgx.match(value)
+                    return False
+                
+            elif clm_match and tbl_match: # i.e. "customer" in both table and column
+                clm = self.clms_rgx.match(value)
+                tbl = self.tbls_rgx.match(value)
 
-                if len(clm) > len(tbl):
+                if len(clm) > len(tbl): 
                     node.type = CompleteType.SET
                 elif len(clm) < len(tbl):
                     node.type = CompleteType.RELATION
                 else: # there exists a column that matches a table name, will need to propogate up to determine?
                     print ("FLAG THIS EXAMPLE FOR LOOKING INTO")
                     node.type = CompleteType.UNKNOWN
-                
-                return 1
             
-            elif clms_rgx.match(value): 
+                return True
+            
+            elif self.clms_rgx.match(value): 
                 node.type = CompleteType.SET
-            elif tbls_rgx.match(value):
+            elif self.tbls_rgx.match(value):
                 node.type = CompleteType.RELATION
             elif re.match(r'[\'][^\']*[\']|[\"][^\"]*[\"]', value): # is some string in quotes
                 node.type = CompleteType.STRING
@@ -232,16 +114,18 @@ class AST():
                 node.type = CompleteType.STRING
             else:
                 node.type = CompleteType.ERROR
-                return -1
-            return 1
+                return False
+            return True
         
-        elif node.op in [Operator.AVG, Operator.SUM, Operator.MAX, Operator.MIN, Operator.COUNT]: # the aggregates
+        elif node.op in [Operator.AVG, Operator.SUM, Operator.MAX, Operator.MIN, Operator.COUNT]: # is an aggregate
             (child,) = node.children
             if node.op == Operator.AVG or node.op == Operator.SUM: # the child must be type int or set with type int
                 if child.type == CompleteType.SET: # the child must be type int or set with type int
                     self.schema.loc[child.value] 
-
-    def createNode(self, op, left, right, value):
+                    
+                    
+    # Creating node in AST
+    def createNode(self, op, left, right, value, root = True):
         id = "s" + str(self.counter)
         self.counter += 1
 
@@ -257,10 +141,14 @@ class AST():
             node = Node(id, op = op, children=(left, right), value=value) #, type = CompleteType.UNKNOWN)
             #self.getCompleteType(node)
 
-        self.nodes.insert(0, node)
+        if root:
+            self.nodes.insert(0, node)
+        else:
+            self.nodes.append(node)
 
         return node
 
+    # Deep copying a node in AST 
     def copyNode(self, node):
         id = "s" + str(self.counter)
         self.counter += 1
@@ -280,11 +168,19 @@ class AST():
 
         return node_copy
 
+    # Checks if it is valid based on SmBoP type system
+    # Takes: rooted node to check if entire tree is valid, verbose whether or not to print each step
     def valid(self, node, verbose = False):
         if verbose: print ("Target: " + str(ops_inputs[node.op]))
 
-        if (len(node.children) == 0):
+        if (node.op == Operator.KEEP):
+            return self.valid(node.children[0])
+
+        if (len(node.children) == 0): 
+            # if it is a leaf node, we assume valid if the following hold true:
+            # it is 
             return True
+        
         elif (len(node.children) == 1):
             if verbose: print ("Input: " + str(ops_outputs[node.children[0].op]) + " , " + str(Type.EMPTY))
             if ops_inputs[node.op] == (ops_outputs[node.children[0].op],Type.EMPTY):
@@ -307,12 +203,51 @@ class AST():
         print ("Error: " + str(node))
         return False
     
+    # Returns the tree rooted at the most recent node added
     def getTree(self): # returns most recent node
         if self.nodes == []:
             return []
         else:
             return self.nodes[0]
 
+    def size(self, node):
+        if len(node.children) == 2:
+            return 1 + max(self.size(node.children[0]), self.size(node.children[1]))
+        elif len(node.children) == 1:
+            return 1 + self.size(node.children[0])
+        else:
+            return 1
+
+    def balanceTreeHelper(self, node, size):        
+        # balance the children to be of the correct size which is the max of either children
+
+        if len(node.children) == 2:
+            left = node.children[0]
+            right = node.children[1]
+            left = self.balanceTreeHelper(left, size - 1)
+            right = self.balanceTreeHelper(right, size - 1)
+            node.children = (left, right)
+            return node
+        elif len(node.children) == 1:
+            node.children = (self.balanceTreeHelper(node.children[0], size - 1),)
+            return node
+        else:
+            # at the leaf node, do keeps until it is the correct size
+            prev = node
+            while (size >= 1):
+                prev = self.createNode(Operator.KEEP, prev, None, None, root=False)
+                size -= 1
+            
+            return prev
+
+    def balanceTree(self):  
+        root = self.nodes[0]
+        size = self.size(root)
+        root = self.balanceTreeHelper(root, size-1)
+
+        return root
+    
+    # Prints tree prettily
     def prettify(self):
         if self.nodes == []:
             print ("")
