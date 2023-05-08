@@ -30,9 +30,9 @@ class Operator(Enum):
     UNION_SET = "UNION_SET"
     INTERSECTION_SET = "INTERSECTION_SET"
     DIFFERENCE_SET = "DIFFERENCE_SET"
-    SELECTION = "SELECTION"
-    CARTESIAN = "CARTESIAN"
-    PROJECTION = "PROJECTION"
+    WHERE = "WHERE"
+    JOIN = "JOIN"
+    SELECT = "SELECT" # used to be PROJECTION
     AND = "AND"
     OR = "OR"
     GREATER_THAN = "GREATER_THAN"
@@ -67,9 +67,9 @@ ops_outputs = {
     Operator.UNION_SET: Type.RELATION,
     Operator.INTERSECTION_SET: Type.RELATION,
     Operator.DIFFERENCE_SET: Type.RELATION,
-    Operator.SELECTION: Type.RELATION,
-    Operator.CARTESIAN: Type.RELATION,
-    Operator.PROJECTION: Type.RELATION,
+    Operator.WHERE: Type.RELATION,
+    Operator.JOIN: Type.RELATION,
+    Operator.SELECT: Type.RELATION,
     Operator.AND: Type.PREDICATE,
     Operator.OR: Type.PREDICATE,
     Operator.GREATER_THAN: Type.PREDICATE,
@@ -104,9 +104,9 @@ ops_inputs = {
     Operator.UNION_SET: (Type.RELATION, Type.RELATION),
     Operator.INTERSECTION_SET: (Type.RELATION, Type.RELATION),
     Operator.DIFFERENCE_SET: (Type.RELATION, Type.RELATION),
-    Operator.SELECTION: (Type.PREDICATE, Type.RELATION),
-    Operator.CARTESIAN: (Type.RELATION, Type.RELATION),
-    Operator.PROJECTION: (Type.CONST_SET, Type.RELATION),
+    Operator.WHERE: (Type.PREDICATE, Type.RELATION),
+    Operator.JOIN: (Type.RELATION, Type.RELATION),
+    Operator.SELECT: (Type.CONST_SET, Type.RELATION),
     Operator.AND: (Type.PREDICATE, Type.PREDICATE),
     Operator.OR: (Type.PREDICATE, Type.PREDICATE),
     Operator.GREATER_THAN: (Type.CONST, Type.CONST),

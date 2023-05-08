@@ -25,16 +25,16 @@ class Parser():
                 selectClause = p[1]
                 (relation, post)  = p[3]
             
-                result = self.AST.createNode(Operator.PROJECTION, selectClause, relation, None)
+                result = self.AST.createNode(Operator.SELECT, selectClause, relation, None)
             else:
                 selectClause = p[2]
                 (relation, post)  = p[4]
             
-                result = self.AST.createNode(Operator.PROJECTION, 
+                result = self.AST.createNode(Operator.SELECT, 
                                              self.AST.createNode(Operator.DISTINCT, selectClause, None, None), relation, None)
 
             if post['HAVING'] != None:
-                result = self.AST.createNode(Operator.SELECTION, post['HAVING'], result, None)
+                result = self.AST.createNode(Operator.WHERE, post['HAVING'], result, None)
             
             if post['ORDERBY'] != None:
                 lst = post['ORDERBY']
@@ -90,18 +90,18 @@ class Parser():
                 orig_relation = p[0]
                 (join_relation, join_pred) = p[1]
                 
-                relation = self.AST.createNode(Operator.CARTESIAN, orig_relation, join_relation, None)
+                relation = self.AST.createNode(Operator.JOIN, orig_relation, join_relation, None)
                 
                 if join_pred == None:
                     fromClause = relation
                 else:
-                    fromClause = self.AST.createNode(Operator.SELECTION, join_pred, relation, None)
+                    fromClause = self.AST.createNode(Operator.WHERE, join_pred, relation, None)
 
             else: # does not have join
                 fromClause = p[0]
 
             if post['WHERE'] != None:
-                fromClause = self.AST.createNode(Operator.SELECTION, post['WHERE'], fromClause, None)
+                fromClause = self.AST.createNode(Operator.WHERE, post['WHERE'], fromClause, None)
 
             if post['GROUPBY'] != None:
                 fromClause = self.AST.createNode(Operator.GROUPBY, post['GROUPBY'], fromClause, None)
@@ -151,23 +151,23 @@ class Parser():
                 relation = p[1]
                 (relation2, pred) = p[2]
 
-                return (self.AST.createNode(Operator.CARTESIAN, relation, relation2, None), pred)
+                return (self.AST.createNode(Operator.JOIN, relation, relation2, None), pred)
             elif len(p) == 2: # no join on?
                 relation = p[1]
                 return (relation, None)
-            else: # if there are multiple, connect with a selection first?
+            else: # if there are multiple, connect with a WHERE first?
                 relation = p[1]
                 pred = p[3]
                 
                 (relation2, pred2) = p[4] # next join stmt
                 
                 if pred2 == None:
-                    selection = self.AST.createNode(Operator.CARTESIAN, relation, relation2, None)
+                    WHERE = self.AST.createNode(Operator.JOIN, relation, relation2, None)
                 else:
-                    selection = self.AST.createNode(Operator.SELECTION, pred2, 
-                    self.AST.createNode(Operator.CARTESIAN, relation, relation2, None), None)
+                    WHERE = self.AST.createNode(Operator.WHERE, pred2, 
+                    self.AST.createNode(Operator.JOIN, relation, relation2, None), None)
                 
-                return (selection, pred)
+                return (WHERE, pred)
             
         # SELECT
         @self.pg.production('constList : constVal COMMA constList')

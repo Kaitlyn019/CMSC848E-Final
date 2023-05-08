@@ -178,7 +178,7 @@ class AST():
 
         if (len(node.children) == 0): 
             # if it is a leaf node, we assume valid if the following hold true:
-            # it is 
+            # if it is a column node, it is valid if it is a 
             return True
         
         elif (len(node.children) == 1):
@@ -196,7 +196,7 @@ class AST():
             [(Type.CONST, Type.CONST), (Type.CONST_SET, Type.CONST), (Type.CONST, Type.CONST_SET)]):
                 return self.valid(node.children[0]) and self.valid(node.children[1]) and True
 
-        if (node.op == Operator.PROJECTION and 
+        if (node.op == Operator.SELECT and 
             ops_outputs[node.children[0].op] == Type.CONST):
                 return self.valid(node.children[0]) and self.valid(node.children[1])
 
@@ -253,3 +253,23 @@ class AST():
             print ("")
         else:
             print (RenderTree(self.nodes[0]))
+        
+    # gives a serialized version of the tree from some rooted node
+    def serialize(self, node):
+        if len(node.children) == 2:
+            left = self.serialize(node.children[0])
+            right = self.serialize(node.children[1])
+            return node
+        elif len(node.children) == 1:
+            node.children = (self.balanceTreeHelper(node.children[0], size - 1),)
+            return node
+        else:
+            # at the leaf node, do keeps until it is the correct size
+            prev = node
+            while (size >= 1):
+                prev = self.createNode(Operator.KEEP, prev, None, None, root=False)
+                size -= 1
+            
+            return prev
+        for pre, fill, node in RenderTree(udo):
+            print("%s%s" % (pre, node.name))
