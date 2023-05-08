@@ -2,6 +2,7 @@ from anytree import Node, RenderTree
 from ast_consts import *
 import pandas as pd
 import re
+import json
 
 counter = 0
 tables = pd.read_json("spider/tables.json")
@@ -255,21 +256,29 @@ class AST():
             print (RenderTree(self.nodes[0]))
         
     # gives a serialized version of the tree from some rooted node
-    def serialize(self, node):
-        if len(node.children) == 2:
-            left = self.serialize(node.children[0])
-            right = self.serialize(node.children[1])
-            return node
-        elif len(node.children) == 1:
-            node.children = (self.balanceTreeHelper(node.children[0], size - 1),)
-            return node
-        else:
-            # at the leaf node, do keeps until it is the correct size
-            prev = node
-            while (size >= 1):
-                prev = self.createNode(Operator.KEEP, prev, None, None, root=False)
-                size -= 1
+    def serialize(self, root):
+        result = ""
+        for pre, fill, node in RenderTree(root):
+            pre = "\t" * int(len(pre)/4)
+            if len(node.children) != 0:
+                result += ("%s%s" % (pre, node.op.value))
+            else:
+                result += ("%s value: %s" % (pre, node.value))
             
-            return prev
-        for pre, fill, node in RenderTree(udo):
-            print("%s%s" % (pre, node.name))
+            result += "\n"
+            
+        return result
+
+    def serializeJSON(self, node):
+        if len(node.children) == 2:
+            left = node.children[0]
+            right = node.children[1]
+            left = self.serializeJSON(left)
+            right = self.serializeJSON(right)
+            
+            return {"operation": node.op.value, "children": [left, right]}
+        elif len(node.children) == 1:
+            child = self.serializeJSON(node.children[0])
+            return {"operation": node.op.value, "children": [child]}
+        else:
+            return {"value": node.value}
