@@ -1,0 +1,38 @@
+How many heads of the departments are older than 56 ?,department_management,SELECT count(*) FROM head WHERE age  >  56,"SELECT
+	COUNT
+		KEEP
+			 value: STAR
+	WHERE
+		GREATER_THAN
+			 value: age
+			 value: 56.0
+		KEEP
+			 value: head
+","{""operation"": ""SELECT"", ""children"": [{""operation"": ""COUNT"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""STAR""}]}]}, {""operation"": ""WHERE"", ""children"": [{""operation"": ""GREATER_THAN"", ""children"": [{""value"": ""age""}, {""value"": 56.0}]}, {""operation"": ""KEEP"", ""children"": [{""value"": ""head""}]}]}]}"
+"List the name, born state and age of the heads of departments ordered by age.",department_management,"SELECT name ,  born_state ,  age FROM head ORDER BY age","ORDERBY_ASC
+	KEEP
+		KEEP
+			KEEP
+				 value: age
+	SELECT
+		UNION_CONST
+			KEEP
+				 value: name
+			UNION_CONST
+				 value: born_state
+				 value: age
+		KEEP
+			KEEP
+				 value: head
+","{""operation"": ""ORDERBY_ASC"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""age""}]}]}]}, {""operation"": ""SELECT"", ""children"": [{""operation"": ""UNION_CONST"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""name""}]}, {""operation"": ""UNION_CONST"", ""children"": [{""value"": ""born_state""}, {""value"": ""age""}]}]}, {""operation"": ""KEEP"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""head""}]}]}]}]}"
+"List the creation year, name and budget of each department.",department_management,"SELECT creation ,  name ,  budget_in_billions FROM department","SELECT
+	UNION_CONST
+		KEEP
+			 value: creation
+		UNION_CONST
+			 value: name
+			 value: budget_in_billions
+	KEEP
+		KEEP
+			 value: department
+","{""operation"": ""SELECT"", ""children"": [{""operation"": ""UNION_CONST"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""creation""}]}, {""operation"": ""UNION_CONST"", ""children"": [{""value"": ""name""}, {""value"": ""budget_in_billions""}]}]}, {""operation"": ""KEEP"", ""children"": [{""operation"": ""KEEP"", ""children"": [{""value"": ""department""}]}]}]}"

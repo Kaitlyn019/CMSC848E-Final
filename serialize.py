@@ -4,11 +4,11 @@ from anytree import Node, RenderTree
 import json
 import csv
 
-f = open("spider/train_spider.json", "r")
+f = open("spider/test.json", "r")
 results = []
 data = json.load(f)
 
-with open('serialized_data.csv', mode='w', encoding="utf-8") as csv_file:
+with open('serialized_data_test.csv', mode='w', encoding="utf-8") as csv_file:
     csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     
     for q in data:
