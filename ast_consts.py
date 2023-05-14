@@ -27,9 +27,9 @@ class CompleteType(Enum):
     UNKNOWN = "UNKNOWN"
 
 class Operator(Enum):
-    UNION_SET = "UNION_SET"
-    INTERSECTION_SET = "INTERSECTION_SET"
-    DIFFERENCE_SET = "DIFFERENCE_SET"
+    UNION_SET = "UNION"
+    INTERSECTION_SET = "INTERSECTION"
+    DIFFERENCE_SET = "DIFFERENCE"
     WHERE = "WHERE"
     JOIN = "JOIN"
     SELECT = "SELECT" # used to be PROJECTION
@@ -142,4 +142,45 @@ table_types = {
     'number': CompleteType.SET_INT,
     'time': CompleteType.SET_TIME,
     'others': CompleteType.SET_OTHERS
+}
+
+# True: left / op / right, False: right / op / left
+binary_ops_SQL = {
+    Operator.UNION_SET: ("UNION", True),
+    Operator.INTERSECTION_SET: ("INTERSECT", True),
+    Operator.DIFFERENCE_SET: ("DIFFERENCE", True),
+    Operator.GREATER_THAN: (">", True), 
+    Operator.LESS_THAN: ("<", True),
+    Operator.BETWEEN: ("BETWEEN", True),
+    Operator.EQUAL: ("=", True),
+    Operator.NOT_EQUAL: ("!=", True),
+    Operator.IN: ("IN", True), # left child should be surrounded in parentheses 
+    Operator.NOTIN: ("NOT IN", True),
+    Operator.LIKE: ("LIKE", True),
+    Operator.NOTLIKE: ("NOT LIKE", True),
+    Operator.AS: ("AS", False),
+    Operator.GROUPBY: ("GROUP BY", False),
+    Operator.LIMIT: ("LIMIT", False),
+    Operator.UNION_CONST: (",", True)
+}
+
+unary_ops_SQL = {
+    Operator.SUM: "SUM",
+    Operator.MAX: "MAX",
+    Operator.MIN: "MIN",
+    Operator.COUNT: "COUNT",
+    Operator.AVG: "AVG",
+    Operator.DISTINCT: "DISTINCT",
+}
+
+special_ops_SQL = {
+    Operator.EMPTY: "",
+    Operator.ARITHMETIC: "",
+    Operator.ORDERBY_ASC: "ORDER BY ASC",
+    Operator.ORDERBY_DSC: "ORDER BY DSC",
+    Operator.WHERE: "WHERE",
+    Operator.SELECT: "SELECT", # if not first select, surround in parentheses
+    Operator.OR: "OR",
+    Operator.AND: "AND",
+    Operator.JOIN: "JOIN"
 }

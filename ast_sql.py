@@ -58,6 +58,12 @@ class AST():
 
         self.tbls_rgx = re.compile("^("+"|".join(tbls)+")$", re.IGNORECASE)
 
+    def constType(self, text):
+        if (self.tbls_rgx.match(text)):
+            return "relation"
+        elif (self.clms_rgx.match(text)):
+            return "const"
+
     # When node is created, it is given a specific type
     # BOOLEAN = "BOOLEAN"
     # INTEGER = "INTEGER"
@@ -281,4 +287,135 @@ class AST():
             child = self.serializeJSON(node.children[0])
             return {"operation": node.op.value, "children": [child]}
         else:
-            return {"value": node.value}
+            return {"value": node.value}        
+
+    def convertToSQL(self, node, select=False):
+        if len(node.children) == 2:
+            left = node.children[0]
+            right = node.children[1]
+            
+            left = self.convertToSQL(left, select or node.op == Operator.SELECT)
+            right = self.convertToSQL(right, select or node.op == Operator.SELECT)
+            
+            if (node.op in binary_ops_SQL.keys()):
+                if (node.op == Operator.IN or node.op == Operator.NOTIN):
+                    right = "(" + right + ")"
+                
+                if binary_ops_SQL[node.op][1]:
+                    sql = left + " " + binary_ops_SQL[node.op][0] + " " + right
+                else:
+                    sql = right + " " + binary_ops_SQL[node.op][0] + " " + left
+                                                    
+                if (node.op == Operator.SELECT and select):
+                    sql = "(" + sql + ")"
+                
+                return sql
+            elif (node.op == Operator.OR):
+                if ((node.children[0].op == Operator.GREATER_THAN) and (node.children[1].op == Operator.EQUAL)):
+                    if (left.replace(">", "") == right.replace("=", "")):
+                        sql = left.replace(">", ">=")
+                        return sql
+                elif ((node.children[0].op == Operator.LESS_THAN) and (node.children[1].op == Operator.EQUAL)):
+                    if (left.replace("<", "") == right.replace("=", "")):
+                        sql = left.replace("<", "<=")
+                        return sql
+                
+                sql = left + " OR " + right
+                return sql
+            elif (node.op == Operator.AND):
+                if (node.children[0].op == Operator.GREATER_THAN and node.children[1].op == Operator.LESS_THAN):
+                    if (left.split(">")[0] == right.split("<")[0]):
+                        sql = left.split(">")[0] + "BETWEEN" + left.split(">")[1] + " AND" + right.split("<")[1]
+                        return sql
+                sql = left + " AND " + right
+                return sql
+            
+            elif (node.op == Operator.SELECT):
+                if (select):
+                    sql = "(SELECT " + left + " FROM " + right + ")"
+                    return sql
+                else:
+                    sql = "SELECT " + left + " FROM " + right
+                    return sql
+            elif (node.op == Operator.ARITHMETIC):
+                sql = left + " " + node.value + " " + right
+                return sql
+            elif (node.op == Operator.ORDERBY_ASC):
+                sql = right + " ORDER BY " + left + " ASC"
+                return sql
+            elif (node.op == Operator.ORDERBY_DSC):
+                sql = right + " ORDER BY " + left + " DESC"
+                return sql
+            elif (node.op == Operator.JOIN):
+                # for each join stmt, return a list of relations deepest first
+                sql = left + " JOIN " + right
+                return sql
+            elif (node.op == Operator.WHERE):
+                if (node.children[1].op == Operator.JOIN):
+                    # left is the relation, right is the join statements
+                    if ("JOIN" in right):
+                        right = right.split(" JOIN ")
+                        right[1] = right[1] + " ON " + left
+                        sql = " JOIN ".join(right)
+                    else:
+                        sql = right + " ON " + left
+                    
+                elif (node.children[1].op == Operator.SELECT):
+                    sql = right + " HAVING " + left
+                else:
+                    sql = right + " WHERE " + left
+                return sql
+            else:
+                print (node.op)
+                print (left)
+                print (right)
+                return "ERROR"     
+                   
+        elif len(node.children) == 1:
+            child = self.convertToSQL(node.children[0], select)
+            if (node.children[0].op == Operator.DISTINCT):
+                child.replace("(", " ")
+                child.replace(")", "")
+
+            if (node.op in unary_ops_SQL.keys()):
+                sql = unary_ops_SQL[node.op] + "(" + child + ")"
+                return sql
+            elif (node.op == Operator.KEEP):
+                return child
+            
+            return "ERROR"
+        else:
+            if (node.value == "STAR"):
+                return "*"
+            
+            if type(node.value) is float:
+                if (str(node.value)[-1] == "0"):
+                    return str(int(node.value))
+
+            return str(node.value)
+
+def unserialize_helper(lst, ast, idx):
+    if ("value" in lst[idx]):
+        leaf = lst[idx].split(":")[1]
+        if (ast.constType(leaf) == "relation"):    
+            return (ast.createNode(Operator.RELATION_LEAF, None, None, value = leaf), idx+1)
+        else:
+            return (ast.createNode(Operator.CONST_LEAF, None, None, value = leaf), idx+1)
+    elif ((ops_inputs[Operator(lst[idx])])[1] == Type.EMPTY):
+        op = Operator(lst[idx])
+        (child,new_idx) = unserialize_helper(lst, ast, idx+1)
+        return (ast.createNode(op, child, None, None), new_idx)
+    else:
+        op = Operator(lst[idx])
+        (left, new_idx) = unserialize_helper(lst, ast, idx+1)
+        (right, final_idx) = unserialize_helper(lst, ast, new_idx)
+        return (ast.createNode(op, left, right, None), final_idx)
+
+def unserialize(text, db_id):
+    lst = text.split("\n")
+    lst = [x.strip() for x in lst]
+    
+    ast = AST(db_id)
+    tree, _ = unserialize_helper(lst, ast, 0)
+    
+    return tree

@@ -359,7 +359,7 @@ class Parser():
                 left_copy = self.AST.copyNode(left)
                 right_copy = self.AST.copyNode(right)
 
-                return self.AST.createNode(Operator.AND,
+                return self.AST.createNode(Operator.OR,
                         self.AST.createNode(Operator.LESS_THAN, left, right, None),
                         self.AST.createNode(Operator.EQUAL, left_copy, right_copy, None), None)
             elif p[1].gettokentype()  == "EQUAL":
