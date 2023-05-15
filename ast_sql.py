@@ -329,14 +329,18 @@ class AST():
                         return sql
                 sql = left + " AND " + right
                 return sql
-            
+        
             elif (node.op == Operator.SELECT):
+                if (node.children[0].op == Operator.DISTINCT):
+                    data = re.match((r"DISTINCT\((.*)\)"), left)
+                    left = "DISTINCT "+ data[1]
+
                 if (select):
                     sql = "(SELECT " + left + " FROM " + right + ")"
-                    return sql
                 else:
                     sql = "SELECT " + left + " FROM " + right
-                    return sql
+                        
+                return sql
             elif (node.op == Operator.ARITHMETIC):
                 sql = left + " " + node.value + " " + right
                 return sql
@@ -374,8 +378,8 @@ class AST():
         elif len(node.children) == 1:
             child = self.convertToSQL(node.children[0], select)
             if (node.children[0].op == Operator.DISTINCT):
-                child.replace("(", " ")
-                child.replace(")", "")
+                data = re.match((r"DISTINCT\((.*)\)"), child)
+                child = "DISTINCT "+ data[1]
 
             if (node.op in unary_ops_SQL.keys()):
                 sql = unary_ops_SQL[node.op] + "(" + child + ")"

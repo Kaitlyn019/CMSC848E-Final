@@ -10,7 +10,7 @@ from ast_sql import *
 # stmt = "SELECT count(*) FROM head WHERE age  >  56	department_management"
 f = open("spider/train_gold.sql", "r")
 
-test = ["SELECT t2.team_name ,  t2.ACC_Regular_Season FROM university AS t1 JOIN basketball_match AS t2 ON t1.school_id  =  t2.school_id ORDER BY t1.founded LIMIT 1	university_basketball"]
+test = ["SELECT DISTINCT T1.artist_name ,  T1.country FROM artist AS T1 JOIN song AS T2 ON T1.artist_name  =  T2.artist_name WHERE T2.rating  >  9  music_1"]
 
 for stmt in test: #f.readlines():
 
@@ -40,7 +40,7 @@ for stmt in test: #f.readlines():
     #json_data = json.dumps(p.get_ast().serializeJSON(tree))
     #print (json_data)
     
-    #print (p.get_ast().convertToSQL(tree))
+    print (p.get_ast().convertToSQL(tree))
     
     _ = '''
     if not (Parser(db_id).get_ast().valid(tree)):
