@@ -62,74 +62,7 @@ class AST():
         if (self.tbls_rgx.match(text)):
             return "relation"
         elif (self.clms_rgx.match(text)):
-            return "const"
-
-    # When node is created, it is given a specific type
-    # BOOLEAN = "BOOLEAN"
-    # INTEGER = "INTEGER"
-    # STRING = "STRING"
-    # COLUMN = "COLUMN"
-    # RELATION = "RELATION"
-
-    # We presume that it will be bottom up
-    # Returns true if node is valid, returns false if node is not valid
-    def getCompleteType(self, node):
-
-        # Case 1: It is a leaf node
-        if node.op == Operator.CONST_LEAF:
-            value = node.value 
-            
-            clm_match = self.clms_rgx.match(value)
-            tbl_match = self.tbls_rgx.match(value)
-            
-            if type(value) is int: # the value is a number
-                node.type = CompleteType.INTEGER
-                return True
-            
-            elif re.match(r'(\w+)\.(\w+)', value): # i.e. "T1.party_id"
-                match = re.match(r'(\w+)\.(\w+)', value)
-
-                if self.clms_rgx.match(match.group(2)): # check that the column is valid i.e. party_id in db
-                    node.type = CompleteType.SET # then this returns a column
-                    self.schema[[match.group(1), match.group(2)]] = ["", False, []]
-                    return True
-                else:
-                    node.type = CompleteType.ERROR # if it is not in the db, this column is invalid to call upon
-                    return False
-                
-            elif clm_match and tbl_match: # i.e. "customer" in both table and column
-                clm = self.clms_rgx.match(value)
-                tbl = self.tbls_rgx.match(value)
-
-                if len(clm) > len(tbl): 
-                    node.type = CompleteType.SET
-                elif len(clm) < len(tbl):
-                    node.type = CompleteType.RELATION
-                else: # there exists a column that matches a table name, will need to propogate up to determine?
-                    print ("FLAG THIS EXAMPLE FOR LOOKING INTO")
-                    node.type = CompleteType.UNKNOWN
-            
-                return True
-            
-            elif self.clms_rgx.match(value): 
-                node.type = CompleteType.SET
-            elif self.tbls_rgx.match(value):
-                node.type = CompleteType.RELATION
-            elif re.match(r'[\'][^\']*[\']|[\"][^\"]*[\"]', value): # is some string in quotes
-                node.type = CompleteType.STRING
-            elif re.match(r'\w+', value): # is some string (usually in an As, will handle above)
-                node.type = CompleteType.STRING
-            else:
-                node.type = CompleteType.ERROR
-                return False
-            return True
-        
-        elif node.op in [Operator.AVG, Operator.SUM, Operator.MAX, Operator.MIN, Operator.COUNT]: # is an aggregate
-            (child,) = node.children
-            if node.op == Operator.AVG or node.op == Operator.SUM: # the child must be type int or set with type int
-                if child.type == CompleteType.SET: # the child must be type int or set with type int
-                    self.schema.loc[child.value] 
-                    
+            return "const"                    
                     
     # Creating node in AST
     def createNode(self, op, left, right, value, root = True):
@@ -423,3 +356,95 @@ def unserialize(text, db_id):
     tree, _ = unserialize_helper(lst, ast, 0)
     
     return tree
+
+def unserializeJSON_helper(d, ast):
+    if "operation" in d.keys():
+        if (len(d['children']) == 2):
+            left = unserializeJSON_helper(d['children'][0], ast)
+            right = unserializeJSON_helper(d['children'][1], ast)
+            
+            return ast.createNode(Operator(d['operation']), left, right, None)
+        else:
+            child = unserializeJSON_helper(d['children'][0], ast)
+            return ast.createNode(Operator(d['operation']), child, None, None)
+    else:
+        leaf = d['value']
+        if (ast.constType(str(leaf)) == "relation"):    
+            return (ast.createNode(Operator.RELATION_LEAF, None, None, value = leaf))
+        else:
+            return (ast.createNode(Operator.CONST_LEAF, None, None, value = leaf))
+
+
+def unserializeJSON(text, db_id):
+    d = json.loads(text.replace("'", "\""))
+    ast = AST(db_id)
+    
+    return unserializeJSON_helper(d, ast)
+
+_ = '''
+    # When node is created, it is given a specific type
+    # BOOLEAN = "BOOLEAN"
+    # INTEGER = "INTEGER"
+    # STRING = "STRING"
+    # COLUMN = "COLUMN"
+    # RELATION = "RELATION"
+
+    # We presume that it will be bottom up
+    # Returns true if node is valid, returns false if node is not valid
+    def getCompleteType(self, node):
+
+        # Case 1: It is a leaf node
+        if node.op == Operator.CONST_LEAF:
+            value = node.value 
+            
+            clm_match = self.clms_rgx.match(value)
+            tbl_match = self.tbls_rgx.match(value)
+            
+            if type(value) is int: # the value is a number
+                node.type = CompleteType.INTEGER
+                return True
+            
+            elif re.match(r'(\w+)\.(\w+)', value): # i.e. "T1.party_id"
+                match = re.match(r'(\w+)\.(\w+)', value)
+
+                if self.clms_rgx.match(match.group(2)): # check that the column is valid i.e. party_id in db
+                    node.type = CompleteType.SET # then this returns a column
+                    self.schema[[match.group(1), match.group(2)]] = ["", False, []]
+                    return True
+                else:
+                    node.type = CompleteType.ERROR # if it is not in the db, this column is invalid to call upon
+                    return False
+                
+            elif clm_match and tbl_match: # i.e. "customer" in both table and column
+                clm = self.clms_rgx.match(value)
+                tbl = self.tbls_rgx.match(value)
+
+                if len(clm) > len(tbl): 
+                    node.type = CompleteType.SET
+                elif len(clm) < len(tbl):
+                    node.type = CompleteType.RELATION
+                else: # there exists a column that matches a table name, will need to propogate up to determine?
+                    print ("FLAG THIS EXAMPLE FOR LOOKING INTO")
+                    node.type = CompleteType.UNKNOWN
+            
+                return True
+            
+            elif self.clms_rgx.match(value): 
+                node.type = CompleteType.SET
+            elif self.tbls_rgx.match(value):
+                node.type = CompleteType.RELATION
+            elif re.match(r'[\'][^\']*[\']|[\"][^\"]*[\"]', value): # is some string in quotes
+                node.type = CompleteType.STRING
+            elif re.match(r'\w+', value): # is some string (usually in an As, will handle above)
+                node.type = CompleteType.STRING
+            else:
+                node.type = CompleteType.ERROR
+                return False
+            return True
+        
+        elif node.op in [Operator.AVG, Operator.SUM, Operator.MAX, Operator.MIN, Operator.COUNT]: # is an aggregate
+            (child,) = node.children
+            if node.op == Operator.AVG or node.op == Operator.SUM: # the child must be type int or set with type int
+                if child.type == CompleteType.SET: # the child must be type int or set with type int
+                    self.schema.loc[child.value] 
+'''

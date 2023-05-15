@@ -31,21 +31,19 @@ for stmt in test: #f.readlines():
     #tree = p.get_ast().balanceTree()
     
     print (RenderTree(tree))
-    print (p.get_ast().serialize(tree))
+    print (p.get_ast().serializeJSON(tree))
     
-    serialize = p.get_ast().serialize(tree)
+    serialize = p.get_ast().serializeJSON(tree)
     
-    print (RenderTree(unserialize(serialize, db_id)))
+    print (RenderTree(unserializeJSON(str(serialize), db_id)))
     
     #json_data = json.dumps(p.get_ast().serializeJSON(tree))
     #print (json_data)
     
     print (p.get_ast().convertToSQL(tree))
     
-    _ = '''
-    if not (Parser(db_id).get_ast().valid(tree)):
+    if not (p.get_ast().valid(tree)):
         print (RenderTree(tree))
-        Parser().get_ast().valid(tree, True)
-    '''
+        p.get_ast().valid(tree, True)
     
 f.close()
